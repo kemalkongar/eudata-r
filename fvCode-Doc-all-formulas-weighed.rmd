@@ -1,0 +1,659 @@
+---
+title: "Group Six, POLI 311 Project Code, all formulas weighed"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(foreign)
+library(ggplot2)
+library(lfe)
+library(stargazer)
+eu <- read.dta("ZA6963_v1-0-0.dta")
+eudk <-read.dta("ZA6963_v1-0-0.dta")
+```
+
+# Outcome Variable = Support for the European Union (EU)'s Common Security and Defense Policy (CSDP)
+
+```{r}
+## This is our outcome variable in which we examine 
+## support for the CSDP.
+## We created a new dummy variale, in which "For" 
+## was coded as 1 and "Against" coded as 0. 
+##"Don't Know" (DK) and all other non-responses
+## were coded out. 
+
+eu <- filter(eu, qa16_4 %in% c("For", "Against")) 
+eu <- eu %>%
+  mutate(CSDP_opinion = ifelse(eu$qa16_4 == "For", 1, 0))
+
+eu %>%
+  ggplot(aes(x = CSDP_opinion)) +
+  geom_bar() +
+  ggtitle("Support for the CSDP") +
+  xlab ("Positions: Against, For") +
+  ylab ("Number of People")
+
+
+## Acting on the Professor's advice, we did a 
+## another version of the variable in which 
+## DK responses were coded as 0, "For" was coded
+## as 1 and "Against" was coded as -1.
+
+eudk <- eudk %>% 
+  mutate(CSDP_opinion= ifelse
+         (eudk$qa16_4 == "For", 1, 
+        ifelse(eudk$qa16_4 == "DK", 0, -1))) %>% 
+  filter(!is.na(CSDP_opinion))
+
+eudk %>%
+  ggplot(aes(x = CSDP_opinion)) +
+  geom_bar() +
+  ggtitle("Support for the CSDP (with DK responses)") +
+  xlab ("Positions: Againist, Don't Know and For") +
+  ylab ("Number of people")
+```
+
+# Independent Variable = European Identity
+
+```{r}
+## This variable asked individuals to state their
+## idenify on a scale goining from their nationality 
+## only to european only. The variable was coded as 
+## a dummy variable with individuals with any trace 
+## of a european identify  coded as 1 and those only 
+## idenifying with their nationality coded as 0. 
+## All non-responses and other answers were coded out.
+
+eu <- filter(eu, qd3 %in% c("(NATIONALITY) only",   
+                            "(NATIONALITY) and European", 
+                            "European and (NATIONALITY)",
+                            "European only"))
+
+eu <- eu %>%
+  mutate(European_Identify = ifelse(eu$qd3 == "(NATIONALITY) and European" | 
+                           eu$qd3 == "European and (NATIONALITY)" 
+                           | 
+                           eu$qd3 == "European only" , 
+                           1, 0))
+
+eu %>% 
+  ggplot(aes(x = European_Identify)) +
+  geom_bar() +
+  ggtitle("European Identification") +
+  xlab ("Positions: Nationality only, European") +
+  ylab ("Number of people")
+
+## A different version of the variable 
+## with the respones: DK, no identify 
+## and refusal to answer coded as 0. 
+## Nationality only was coded as -1 
+## and any trace of a European indentity 
+## was coded as 1. 
+
+eudk <- eudk %>% 
+  mutate(European_Identify= ifelse(eudk$qd3 == "(NATIONALITY) and European" | 
+                           eudk$qd3 == "European and (NATIONALITY)" | 
+                           eudk$qd3 == "European only" , 1, ifelse(eudk$qd3 == "DK" |  
+                          eudk$qd3 == "None (SPONTANEOUS)" | 
+                          eudk$qd3 == "Refusal (SPONTANEOUS)", 0, -1 )))%>% 
+ filter(!is.na(European_Identify))
+
+eudk %>% 
+  ggplot(aes(x = European_Identify)) +
+  geom_bar() +
+  ggtitle("European Identification (including DK responses)") +
+  xlab ("Positions: Nationality, Don't Know, European ") +
+  ylab ("Number of people")
+```
+
+# Confounding variable = Support for National Military
+
+```{r}
+## This variable asked individuals if they
+## tended to trust or tended not to trust their 
+## national military. The variable was coded as 
+## a dummy variable with "tend to trust"coded 
+## as 1 and "tend not to trust""  coded as 0. 
+## DK and all other indecisive responses 
+## were removed from the dataset.
+
+eu <- filter (eu, qa8a_5 %in% c("Tend to trust", "Tend not to trust")) 
+eu <- eu %>%
+  mutate(Trust_national_military = ifelse(eu$qa8a_5 == "Tend to trust", 1, 0))
+
+## A different version of the variable 
+## with DK responses coded as 0. "Tend not 
+## to trust" was coded as -1 and "tend 
+## to trust"" was coded as 1. 
+
+eudk <- eudk %>% 
+  mutate(Trust_national_military= ifelse(eudk$qa8a_5 == "Tend to trust", 
+                                 1, ifelse(eudk$qa8a_5 == "DK", 0, -1))) %>% 
+  filter(!is.na(Trust_national_military))
+
+```
+
+# Confounding Variable = Direction of the EU
+
+```{r}
+## This variable asked individuals if they 
+## felt the EU is going in the right direction. 
+## "Things are going in the right direction" was 
+## coded as 1, "Neither the one nor the other 
+## (SPONTANEOUS)" was coded as 0 and "Things are
+## going in the wrong direction" was coded as -1. 
+## All other responses were coded out.
+
+eu <- filter (eu, d73a_2 %in% c("Things are going in the right direction",   
+                                  "Things are going in the wrong direction",
+                                  "Neither the one nor the other (SPONTANEOUS)")
+                                )
+eu <- eu %>% 
+  mutate(EU_right_direction= ifelse(eu$d73a_2== "Things are going in the right direction", 1,
+                       ifelse(eu$d73a_2 == "Neither the one nor the other (SPONTANEOUS)", 
+                              0, -1)))
+
+## Same variable but with "DK"
+## responses included, coded as 0.
+
+eudk <- eudk %>% 
+  mutate(EU_right_direction= 
+           ifelse(eudk$d73a_2== "Things are going in the right direction", 1, 
+          ifelse(eudk$d73a_2 == "Neither the one nor the other (SPONTANEOUS)" 
+                 | eudk$d73a_2 ==  "DK", 0, -1))) %>% 
+  filter(!is.na(EU_right_direction)) 
+```
+
+# Confounding Variable = Direction of the US
+
+```{r}
+## This variable asked individuals if they 
+## felt the US is going in the right direction. 
+## "Things are going in the right direction" was 
+## coded as 1, "Neither the one nor the other 
+## (SPONTANEOUS)" was coded as 0 and "Things 
+## are going in the wrong direction" was coded as 
+## -1. All other responses were coded out.
+
+eu <- filter (eu, d73a_3 %in% c("Things are going in the right direction", 
+                           "Things are going in the wrong direction",
+                                  "Neither the one nor the other (SPONTANEOUS)")
+                                )
+
+eu <- eu %>% 
+  mutate(US_right_direction= ifelse(eu$d73a_3 == "Things are going in the right direction", 1,
+                       ifelse(eu$d73a_3 == "Neither the one nor the other (SPONTANEOUS)", 
+                              0, -1)))
+
+## Same variable but with "DK" respones
+## included, coded as 0.
+
+eudk <- eudk %>% 
+  mutate(US_right_direction= 
+           ifelse(eudk$d73a_3== "Things are going in the right direction", 1, 
+        ifelse(eudk$d73a_3 == "Neither the one nor the other (SPONTANEOUS)" 
+               | eudk$d73a_3 ==  "DK", 0, -1))) %>% 
+  filter(!is.na(US_right_direction)) 
+```
+
+# Confounding Variable = Gender
+
+```{r}
+## This is the variable for gender. The only 
+## responses which could be given were "Man" or "Woman".
+
+eu %>% 
+  ggplot(aes(x = d10)) +
+  geom_bar() +
+  ggtitle("Gender")
+
+## Recoding the varible into a dummy variable, for 
+## linear regression models with DK responses included.
+
+eudk <- eudk %>% 
+  mutate(Gender = ifelse(eudk$d10== "Woman", 0, 1))
+
+## Recoding varible into a dummy variable, for 
+## the linear regression models without DK respones.
+
+eu <- eu %>% 
+  mutate(Gender = ifelse(eu$d10== "Woman", 0, 1))
+```
+
+# Confounding Variable = Age
+
+```{r}
+## The variable for age, the range is from 
+## 15 to 95.
+
+eu %>% 
+  ggplot(aes(x = d11)) +
+  geom_bar() +
+  ggtitle("Age")
+
+## Assigning d11 to an object with a more 
+## descriptive name, for linear regression 
+## models with DK responses.
+
+eudk <- eudk %>% 
+  mutate(Age = eudk$d11)
+
+## Assigning d11 to an object with a more 
+## descriptive name, for linear regression 
+## models without DK responses.
+
+eu <- eu %>% 
+  mutate(Age = eu$d11)
+```
+
+# Confounding Variable = Trust in the European Commission
+
+```{r}
+## This variable asked individuals if
+## they tended to trust or tended not to 
+## trust the European Commission, the
+## European Union body responsible for 
+## running the CSDP. The variable was coded 
+## as a dummy variable with "tend to trust"
+## coded as 1 and "tend not to trust" coded
+## as 0. All other respones were coded out. 
+
+eu <- filter(eu, qa14_2 %in% c("Tend to trust", "Tend not to trust"))
+eu <- eu %>%
+  mutate(Trust_EU_Commission = ifelse(eu$qa14_2 == "Tend to trust", 1, 0))
+
+## The same variable, but with DK responses
+## included, coded as 0. "Tend to trust"
+## coded as 1, and "tend not to trust"
+## coded as -1.
+
+eudk <- eudk %>% 
+  mutate(Trust_EU_Commission= 
+           ifelse(eudk$qa14_2 == "Tend to trust", 1,    ifelse(eudk$qa14_2 == "DK", 0, -1))) %>% 
+  filter(!is.na(Trust_EU_Commission)) 
+```
+
+# Confounding Variable = Financial Situation in the Household
+
+```{r}
+## This variable asked individuals about 
+## their opinion of the state of their 
+## household's finacial situation. The variable 
+## was recoded into a dummy variable with 
+## "very good" and "rather good" being coded 
+## as 1 and "rather bad" and "very bad" being 
+## coded as 0. All other responses were coded out.
+
+eu <- filter(eu, qa1a_5 %in% c("Very good", "Rather good", "Rather bad","Very bad"))
+
+eu <- eu %>% 
+  mutate(Financial_situation= ifelse(eu$qa1a_5== " Very good" | 
+                              eu$qa1a_5== "Rather good", 1, 0))
+
+## The Same variable but with DK reponses 
+## included, coded as 0."Rather bad" and
+##  "very bad" coded as -1 and "rather good"
+##  and "very good" coded as 1.
+
+eudk <- eudk %>% 
+  mutate(Financial_situation= 
+           ifelse(eudk$qa1a_5== " Very good" | 
+                  eudk$qa1a_5== "Rather good", 1, 
+                  ifelse(eudk$qa1a_5 == "DK", 0, -1))) %>% 
+  filter(!is.na(Financial_situation)) 
+
+```
+
+#Weighting Variable
+
+```{r}
+## The Professor advised us during the poster
+## session, that the Eurobarometer survey has
+## weight variables and we should include them
+## in our linear regression models. The Variable 
+## w23 weighs for the differences between the 28 
+## nations of the EU. As it was the most encompassing 
+## weight variable, that is why it was selected.
+
+## Assigning w23 to an object with a more 
+## descriptive name, for linear regression 
+## models with DK responses.
+
+eudk <- eudk %>% 
+  mutate(weight =eudk$w23)
+
+## Assigning w23 to an object with a more 
+## descriptive name, for linear regression 
+## models without DK responses.
+
+eu <- eu %>% 
+  mutate(weight =eu$w23)
+```
+
+#Fixed Effects, controlling for country of orgin
+
+```{r}
+## We decided to control for the fixed 
+## effects of country of orgin. However, 
+## the Eurobarometer survey coded West 
+## and East Germany as well as Great Britain 
+## and Northern Ireland separatly. We decided to 
+## re-combine the two pairs to reflect the 
+## geo-political realities of the present.
+
+eu$iso <- eu$isocntry
+eudk$iso <-eudk$isocntry
+
+## Re-combining West and East Germany for the
+## dataset with DK responses coded out.
+
+eu$iso[eu$iso %in% c("DE-E", "DE-W")] <- "DE"
+
+## Re-combining Great Britain and Northern Ireland
+## for the dataset with DK responses coded out.
+
+eu$iso[eu$iso %in% c("GB-GBN", "GB-NIR")] <- "GB"
+
+## Repeating the process for the dataset with DK 
+## responses included.
+
+
+eudk$iso[eudk$iso %in% c("DE-E", "DE-W")] <- "DE"
+eudk$iso[eudk$iso %in% c("GB-GBN", "GB-NIR")] <- "GB"
+```
+
+# Linear regression models 
+# for the variables which 
+# include DK responses
+
+```{r}
+## DK, Model 1: support for the CSDP and  
+## European identify. 
+
+dkm1 <-lm(CSDP_opinion ~ European_Identify, 
+          data = eudk, 
+          weigh = eudk$weight)
+summary(dkm1)
+
+## DK, Model 2: same as model 1 but 
+## controling for support for national 
+## military and the EU Commission. 
+
+dkm2 <-lm(CSDP_opinion ~ European_Identify 
+          + Trust_national_military 
+          + Trust_EU_Commission, 
+          data = eudk, 
+          weigh = eudk$weight)
+summary(dkm2)
+
+## DK, Model 2f: model 2 but applying 
+## fixed effects, controlling for 
+## country of orgin. 
+
+dkm2f <- felm(CSDP_opinion ~ European_Identify         
+              + Trust_national_military 
+              + Trust_EU_Commission
+              |  
+              eudk$iso, 
+              data = eudk,
+              weigh = eudk$weight)
+summary(dkm2f)
+
+## DK, Model 3: same as model 2 but 
+## adding the variables for EU/US direction.
+
+dkm3 <- lm(CSDP_opinion~ European_Identify + 
+              Trust_national_military + 
+              Trust_EU_Commission +
+              EU_right_direction +
+              US_right_direction 
+              , data = eudk,
+           weigh = eudk$weight)
+summary(dkm3)
+
+## DK, Model 3f: same model as Model 3 but 
+## applying fixed effects, controlling for 
+## country of orgin. 
+
+dkm3f <- felm(CSDP_opinion ~ European_Identify + 
+                      Trust_national_military + 
+                      Trust_EU_Commission + 
+                      EU_right_direction +  
+                      US_right_direction
+                       |
+                      eudk$iso,
+                      data = eudk,
+                      weigh = eudk$weight)
+summary(dkm3f)
+
+## DK, Model 4: same as model 3 but controlling for  
+## the demographic variables. 
+
+dkm4 <- lm(CSDP_opinion ~ European_Identify + 
+               Trust_national_military +
+               Trust_EU_Commission + 
+               EU_right_direction +
+               US_right_direction + 
+               Financial_situation + 
+               Age + 
+               Gender, 
+              data = eudk, 
+              weigh = eudk$weight)
+summary(dkm4)
+
+## DK, Model 4f: same model as Model 4 
+## but applying fixed effects, controlling 
+## for country of orgin. 
+
+dkm4f <- felm(CSDP_opinion ~ 
+                European_Identify + 
+                Trust_national_military + 
+                Trust_EU_Commission + 
+                EU_right_direction + 
+                US_right_direction + 
+                Financial_situation + 
+                Age 
+                + Gender
+               |eudk$iso,
+                 data = eudk,
+              weigh = eudk$weight)
+summary(dkm4f)
+```
+
+#Tables of the Linear Regression models 
+#using variables that include DK responses, 
+#using Stargazer
+
+```{r, results = "asis"}
+## Table of Linear Regression models including
+## Don't Know responses
+
+stargazer (title = "Weighted Linear Regression models of 
+           support for the EU's CSDP (including 
+           Don't Know responses)",
+           dkm1, dkm2, dkm3, dkm4,
+           column.labels = c("dkm1", "dkm2", 
+                             "dkm3", "dkm4"),
+           column.sep.width = "-20pt",
+           font.size = "small",
+           header = FALSE)
+
+## Table of Linear Regression models that
+## control for fixed effects, including 
+## Don't Know responses.
+  
+stargazer(title = "Weighted Linear Regression models 
+          with Fixed effects, of 
+          support for the EU's CSDP
+          (including Don't Know responses)",
+          dkm2f, dkm3f, dkm4f, 
+          column.labels = c("dkm2f", 
+                            "dkm3f", "dkm4f"),
+          column.sep.width = "-20pt",
+          font.size = "small",
+          header = FALSE)
+```
+
+## Linear regression models for variables
+## with DK responses removed 
+
+```{r}
+# Model 1: support for the CSDP and European identify. 
+
+m1 <-lm(CSDP_opinion ~ European_Identify, data = eu, weigh = eu$weight)
+summary(m1)
+
+## Model 2: same as model 1 but controling for
+## support for national military and the EU Commission. 
+
+m2 <-lm(CSDP_opinion ~ European_Identify 
+                    + Trust_national_military 
+                    + Trust_EU_Commission, 
+                    data = eu, weigh = eu$weight)
+summary(m2)
+
+##  Model 2f: model 2 but applying 
+##  fixed effects, controlling for 
+## country of orgin . 
+
+m2f <- felm(CSDP_opinion ~ European_Identify 
+                 + Trust_national_military 
+                 + Trust_EU_Commission
+                 | 
+                 eu$iso , 
+                 data = eu,
+                 weigh = eu$weight)
+summary(m2f)
+
+## Model 3: same as model 2 but adding the 
+## variables for EU/US directions.
+
+m3 <- lm(CSDP_opinion ~ European_Identify + 
+              Trust_national_military + 
+              Trust_EU_Commission +
+              EU_right_direction +
+              US_right_direction 
+              , data = eu, weigh = eu$weight)
+summary(m3)
+
+## Model 3f: same as model 3 but applying 
+## fixed effects, controlling for country 
+## of orgin. 
+
+m3f <- felm(CSDP_opinion ~ European_Identify + 
+                      Trust_national_military + 
+                      Trust_EU_Commission + 
+                      EU_right_direction +  
+                      US_right_direction
+                      |
+                      eu$iso, 
+                      data = eu,
+                      weigh = eu$weight)
+summary(m3f)
+
+## Model 4: same as model 3 but controlling for 
+## the demographic variables. 
+
+m4 <- lm(CSDP_opinion ~ European_Identify + 
+               Trust_national_military +
+               Trust_EU_Commission + 
+               EU_right_direction +
+               US_right_direction + 
+               Financial_situation + 
+               Age + 
+               Gender, 
+               data = eu, 
+              weigh = eu$weight)
+summary(m4)
+
+## Model 4f: same model as Model 4 but 
+## applying fixed effects, controlling 
+## for country of orgin. 
+
+m4f <- felm(CSDP_opinion ~ 
+                European_Identify + 
+                Trust_national_military +
+                Trust_EU_Commission + 
+                EU_right_direction +
+                US_right_direction + 
+                Financial_situation + 
+                Age + 
+                Gender
+                |eu$iso,
+                data = eu,
+                weigh = eu$weight)
+summary(m4f)
+```
+
+## Tables of the Linear Regression models,
+## of variables without Don't Know responses, 
+## using Stargazer
+
+```{r, results = "asis"}
+## Table of Linear Regression models without 
+## Don't Know responses
+
+stargazer (title = "Weighted Linear Regression models 
+           of support for the EU's CSDP (without Don't Know responses)",
+           m1, m2, m3, m4, 
+           column.labels = c("m1", "m2", "m3", "m4"),
+           column.sep.width = "-20pt",
+           font.size = "small",
+           header = FALSE)
+
+## Table of Linear Regression models 
+## controlling for Fixed effects, without Dk.
+
+stargazer(title = "Weighted Linear Regression models 
+          with fixed effects, of support for 
+          the EU's CSDP (without Don't Know responses",
+          m2f, m3f, m4f, 
+          column.labels = c("m2f", "m3f", "m4f"),
+          column.sep.width = "-20pt",
+          font.size = "small",
+          header = FALSE)
+```
+
+
+
+
+## Equations for the linear regression 
+## models, done in LaTeX
+
+
+$$CommonEuropeanDefence_i = 
+\alpha_{EuropeanIdentity} + \epsilon$$
+
+
+
+$$CommonEuropeanDefence = 
+\alpha_{1_EuropeanIdentity} + 
+\beta_{1_SupportForNationalMilitary} +
+\beta_{2_SupportForTheEC}$$
+
+
+$$+\beta_{3_DirectionOfTheUSA} + 
+\beta_{4_DirectionOfTheEU} + 
+\beta_{5_FinancialSituation} + 
+\beta_{6_Age} + 
+\beta_{7_Gender}$$
+
+$$+\epsilon, ControlledforCountryofOrigin $$
+
+$$CommonEuropeanDefence = 
+\alpha_{1 EuropeanIdentity} + 
+\beta_{1 SupportForNationalMilitary}$$
+
+$$+\beta_{2 SupportForTheEC} + 
+\beta_{3 DirectionOfTheUSA} + 
+\beta_{4 DirectionOfTheEU}$$
+
+
+$$+ \beta_{5 FinancialSituation} + 
+\beta_{6 Age} + 
+\beta_{7 Gender} + 
+\epsilon, FixedEffects$$ 
+
