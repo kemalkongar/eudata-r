@@ -1,0 +1,2 @@
+# Defining R Markdown files as R
+*.rmd linguist-language=R
